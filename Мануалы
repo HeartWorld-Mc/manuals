@@ -1,0 +1,810 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Протоколы проверки · Уровни допуска Alpha—Terra</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#07080a;
+    --bg-soft:#0b0d10;
+    --surface:#111419;
+    --surface-2:#161a21;
+    --border:#1f242c;
+    --border-soft:#262c35;
+    --text:#e7e9ec;
+    --text-dim:#9099a6;
+    --text-faint:#5b6472;
+    --ok:#4ade80;
+    --ok-dim:rgba(74,222,128,0.12);
+    --bad:#fb7185;
+    --bad-dim:rgba(251,113,133,0.12);
+
+    --alpha:#2dd4bf;
+    --beta:#38bdf8;
+    --meta:#a78bfa;
+    --gamma:#fbbf24;
+    --terra:#fb7185;
+
+    --mono: 'IBM Plex Mono', ui-monospace, monospace;
+    --sans: 'IBM Plex Sans', system-ui, sans-serif;
+  }
+
+  *{ box-sizing:border-box; margin:0; padding:0; }
+  html{ scroll-behavior:smooth; }
+  body{
+    background:var(--bg);
+    color:var(--text);
+    font-family:var(--sans);
+    line-height:1.55;
+    -webkit-font-smoothing:antialiased;
+    overflow-x:hidden;
+  }
+
+  ::selection{ background:rgba(255,255,255,0.15); }
+
+  a{ color:inherit; }
+
+  .noise{
+    position:fixed; inset:0; pointer-events:none; z-index:0;
+    opacity:0.035; mix-blend-mode:overlay;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  }
+
+  /* ---------- topbar ---------- */
+  .topbar{
+    position:sticky; top:0; z-index:50;
+    display:flex; align-items:center; justify-content:space-between;
+    padding:16px 28px;
+    background:rgba(7,8,10,0.82);
+    backdrop-filter:blur(10px);
+    border-bottom:1px solid var(--border);
+  }
+  .brand{ display:flex; align-items:center; gap:10px; }
+  .brand-mark{
+    width:20px; height:20px; border-radius:4px;
+    background:linear-gradient(135deg,var(--alpha),var(--terra));
+    flex-shrink:0;
+  }
+  .brand-text{ font-family:var(--mono); font-size:13px; letter-spacing:0.06em; }
+  .brand-text b{ color:var(--text); font-weight:600; }
+  .brand-text span{ color:var(--text-faint); }
+
+  .toppills{ display:flex; gap:4px; }
+  .pill{
+    font-family:var(--mono); font-size:12px; letter-spacing:0.02em;
+    padding:7px 12px; border-radius:100px;
+    color:var(--text-dim); text-decoration:none;
+    border:1px solid transparent;
+    transition:all .15s ease;
+    white-space:nowrap;
+  }
+  .pill:hover{ color:var(--text); border-color:var(--border-soft); }
+  .pill.active{ color:var(--pill-color,var(--text)); background:var(--surface-2); border-color:var(--border-soft); }
+
+  .menu-toggle{ display:none; }
+
+  /* ---------- side rail (scrollspy ladder) ---------- */
+  .rail{
+    position:fixed; left:26px; top:50%; transform:translateY(-50%);
+    z-index:40; display:flex; flex-direction:column; gap:14px;
+  }
+  .rail a{
+    width:9px; height:9px; border-radius:50%;
+    background:var(--border-soft);
+    display:block; position:relative;
+    transition:all .2s ease;
+  }
+  .rail a::after{
+    content:attr(data-label);
+    position:absolute; left:20px; top:50%; transform:translateY(-50%);
+    font-family:var(--mono); font-size:11px; letter-spacing:0.05em;
+    color:var(--text-faint); white-space:nowrap;
+    opacity:0; transition:opacity .15s ease;
+  }
+  .rail a:hover::after{ opacity:1; }
+  .rail a.active{
+    background:var(--dot-color,var(--text));
+    box-shadow:0 0 0 3px rgba(255,255,255,0.06);
+    transform:scale(1.3);
+  }
+
+  main{ position:relative; z-index:1; }
+
+  section{ padding:120px 28px; max-width:1040px; margin:0 auto; }
+  @media (max-width:720px){ section{ padding:80px 20px; } }
+
+  /* ---------- hero ---------- */
+  .hero{ padding-top:90px; padding-bottom:80px; }
+  .eyebrow{
+    font-family:var(--mono); font-size:12px; letter-spacing:0.16em;
+    color:var(--text-faint); text-transform:uppercase; margin-bottom:18px;
+    display:flex; align-items:center; gap:10px;
+  }
+  .eyebrow::before{ content:''; width:22px; height:1px; background:var(--text-faint); }
+
+  h1.title{
+    font-family:var(--mono); font-weight:600; font-size:clamp(32px,5vw,56px);
+    line-height:1.08; letter-spacing:-0.01em; max-width:780px;
+  }
+  .hero p.lede{
+    margin-top:22px; font-size:17px; color:var(--text-dim); max-width:560px;
+  }
+
+  .ladder{
+    margin-top:64px; display:flex; flex-direction:column; gap:0;
+    max-width:640px;
+  }
+  .ladder-row{
+    display:flex; align-items:center; gap:18px;
+    padding:16px 0; border-top:1px solid var(--border);
+    text-decoration:none; color:inherit;
+    transition:padding-left .2s ease;
+  }
+  .ladder-row:last-child{ border-bottom:1px solid var(--border); }
+  .ladder-row:hover{ padding-left:10px; }
+  .ladder-num{
+    font-family:var(--mono); font-size:12px; color:var(--text-faint);
+    width:20px; flex-shrink:0;
+  }
+  .ladder-bar{
+    height:22px; border-radius:3px; flex-shrink:0;
+    background:var(--c);
+    box-shadow:0 0 24px -6px var(--c);
+  }
+  .ladder-name{ font-family:var(--mono); font-weight:600; font-size:15px; color:var(--text); width:78px; flex-shrink:0; }
+  .ladder-desc{ color:var(--text-dim); font-size:13.5px; }
+
+  /* ---------- general rules ---------- */
+  .rules-grid{
+    display:grid; grid-template-columns:1fr 1fr; gap:20px; margin-top:36px;
+  }
+  @media (max-width:720px){ .rules-grid{ grid-template-columns:1fr; } }
+  .rule-card{
+    background:var(--surface); border:1px solid var(--border);
+    border-radius:10px; padding:24px;
+  }
+  .rule-card h3{
+    font-family:var(--mono); font-size:13px; letter-spacing:0.04em;
+    color:var(--text-dim); text-transform:uppercase; margin-bottom:16px;
+  }
+  .rule-card ul{ list-style:none; display:flex; flex-direction:column; gap:12px; }
+  .rule-card li{
+    font-size:14.5px; color:var(--text); padding-left:16px; position:relative;
+  }
+  .rule-card li::before{
+    content:'—'; position:absolute; left:0; color:var(--text-faint);
+  }
+
+  h2.section-title{
+    font-family:var(--mono); font-weight:600; font-size:26px; margin-bottom:8px;
+  }
+  p.section-lede{ color:var(--text-dim); font-size:15px; margin-bottom:8px; }
+
+  /* ---------- rank sections ---------- */
+  .rank-section{
+    border-top:1px solid var(--border);
+    scroll-margin-top:90px;
+  }
+  .rank-head{ display:flex; align-items:baseline; gap:16px; flex-wrap:wrap; }
+  .rank-level{
+    font-family:var(--mono); font-size:12px; letter-spacing:0.1em;
+    color:var(--c); border:1px solid var(--c); border-radius:100px;
+    padding:4px 10px;
+  }
+  .rank-title{
+    font-family:var(--mono); font-weight:700; font-size:38px; color:var(--text);
+  }
+  .rank-subtitle{ color:var(--text-dim); font-size:15.5px; margin-top:10px; max-width:620px; }
+  .rank-accent-bar{
+    height:2px; width:64px; background:var(--c); margin-top:22px;
+    box-shadow:0 0 16px -2px var(--c);
+  }
+
+  .block{ margin-top:52px; }
+  .block-label{
+    font-family:var(--mono); font-size:12px; letter-spacing:0.1em;
+    color:var(--text-faint); text-transform:uppercase; margin-bottom:20px;
+    display:flex; align-items:center; gap:10px;
+  }
+  .block-label::before{ content:''; width:14px; height:1px; background:var(--c); }
+
+  /* tools */
+  .tools-grid{ display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+  @media (max-width:720px){ .tools-grid{ grid-template-columns:1fr; } }
+  .tool-card{
+    background:var(--surface); border:1px solid var(--border); border-radius:10px;
+    padding:20px; display:flex; flex-direction:column; gap:10px;
+  }
+  .tool-name{ font-family:var(--mono); font-weight:600; font-size:15px; color:var(--c); }
+  .tool-desc{ font-size:13.8px; color:var(--text-dim); flex-grow:1; }
+  .tool-link{
+    font-family:var(--mono); font-size:12px; color:var(--text-dim);
+    text-decoration:none; border-top:1px solid var(--border-soft);
+    padding-top:10px; display:flex; align-items:center; justify-content:space-between;
+    transition:color .15s ease;
+  }
+  .tool-link:hover{ color:var(--c); }
+
+  /* steps */
+  .steps{ position:relative; padding-left:6px; }
+  .step{
+    display:flex; gap:18px; padding-bottom:26px; position:relative;
+  }
+  .step:last-child{ padding-bottom:0; }
+  .step::before{
+    content:''; position:absolute; left:13px; top:28px; bottom:0; width:1px;
+    background:var(--border-soft);
+  }
+  .step:last-child::before{ display:none; }
+  .step-num{
+    font-family:var(--mono); font-size:12px; font-weight:600;
+    width:27px; height:27px; border-radius:50%; flex-shrink:0;
+    display:flex; align-items:center; justify-content:center;
+    background:var(--surface-2); border:1px solid var(--border-soft); color:var(--c);
+    z-index:1;
+  }
+  .step-text{ font-size:14.5px; color:var(--text); padding-top:4px; }
+
+  /* allowed / forbidden */
+  .permissions{ display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+  @media (max-width:720px){ .permissions{ grid-template-columns:1fr; } }
+  .perm-card{ border-radius:10px; padding:22px; border:1px solid var(--border); }
+  .perm-card.allow{ background:linear-gradient(180deg, var(--ok-dim), transparent 60%); }
+  .perm-card.deny{ background:linear-gradient(180deg, var(--bad-dim), transparent 60%); }
+  .perm-title{
+    font-family:var(--mono); font-size:12px; letter-spacing:0.08em; text-transform:uppercase;
+    display:flex; align-items:center; gap:8px; margin-bottom:16px;
+  }
+  .perm-title.allow{ color:var(--ok); }
+  .perm-title.deny{ color:var(--bad); }
+  .perm-list{ list-style:none; display:flex; flex-direction:column; gap:11px; }
+  .perm-list li{ font-size:14px; color:var(--text); padding-left:22px; position:relative; }
+  .perm-list.allow li::before{ content:'✓'; position:absolute; left:0; color:var(--ok); font-weight:600; }
+  .perm-list.deny li::before{ content:'✕'; position:absolute; left:0; color:var(--bad); font-weight:600; }
+
+  /* notes */
+  .note-box{
+    border-left:2px solid var(--c); background:var(--surface);
+    padding:18px 22px; border-radius:0 8px 8px 0; display:flex; flex-direction:column; gap:10px;
+  }
+  .note-item{ font-size:14px; color:var(--text-dim); padding-left:0; }
+  .note-item b{ color:var(--text); font-weight:600; }
+
+  footer{
+    border-top:1px solid var(--border); padding:48px 28px 80px;
+    text-align:center;
+  }
+  footer p{ font-family:var(--mono); font-size:12px; color:var(--text-faint); letter-spacing:0.04em; }
+
+  @media (prefers-reduced-motion: reduce){
+    html{ scroll-behavior:auto; }
+    *{ transition:none !important; }
+  }
+
+  @media (max-width:900px){
+    .rail{ display:none; }
+    .toppills{ display:none; }
+    .menu-toggle{
+      display:block; font-family:var(--mono); font-size:12px; color:var(--text-dim);
+      background:none; border:1px solid var(--border-soft); border-radius:8px; padding:8px 12px;
+    }
+  }
+  .mobile-nav{
+    display:none; position:fixed; inset:0; z-index:60; background:rgba(7,8,10,0.97);
+    backdrop-filter:blur(6px); padding:90px 28px 28px; flex-direction:column; gap:6px;
+  }
+  .mobile-nav.open{ display:flex; }
+  .mobile-nav a{
+    font-family:var(--mono); font-size:16px; padding:14px 4px; border-bottom:1px solid var(--border);
+    text-decoration:none; color:var(--text);
+  }
+  .mobile-nav .close{
+    position:absolute; top:20px; right:24px; font-family:var(--mono); color:var(--text-dim);
+    background:none; border:1px solid var(--border-soft); border-radius:8px; padding:8px 12px;
+  }
+</style>
+</head>
+<body>
+
+<div class="noise"></div>
+
+<header class="topbar">
+  <div class="brand">
+    <div class="brand-mark"></div>
+    <div class="brand-text"><b>ПРОТОКОЛЫ ПРОВЕРКИ</b><br><span>anti-cheat / access levels</span></div>
+  </div>
+  <nav class="toppills" id="topnav">
+    <a href="#rules" class="pill">Правила</a>
+    <a href="#alpha" class="pill" style="--pill-color:var(--alpha)">Alpha</a>
+    <a href="#beta" class="pill" style="--pill-color:var(--beta)">Beta</a>
+    <a href="#meta" class="pill" style="--pill-color:var(--meta)">Meta</a>
+    <a href="#gamma" class="pill" style="--pill-color:var(--gamma)">Gamma</a>
+    <a href="#terra" class="pill" style="--pill-color:var(--terra)">Terra</a>
+  </nav>
+  <button class="menu-toggle" id="menuToggle">МЕНЮ</button>
+</header>
+
+<div class="mobile-nav" id="mobileNav">
+  <button class="close" id="menuClose">ЗАКРЫТЬ</button>
+  <a href="#rules">Общие правила</a>
+  <a href="#alpha">Alpha — уровень 1</a>
+  <a href="#beta">Beta — уровень 2</a>
+  <a href="#meta">Meta — уровень 3</a>
+  <a href="#gamma">Gamma — уровень 4</a>
+  <a href="#terra">Terra — уровень 5</a>
+</div>
+
+<nav class="rail" id="rail">
+  <a href="#rules" data-label="Правила"></a>
+  <a href="#alpha" data-label="Alpha" style="--dot-color:var(--alpha)"></a>
+  <a href="#beta" data-label="Beta" style="--dot-color:var(--beta)"></a>
+  <a href="#meta" data-label="Meta" style="--dot-color:var(--meta)"></a>
+  <a href="#gamma" data-label="Gamma" style="--dot-color:var(--gamma)"></a>
+  <a href="#terra" data-label="Terra" style="--dot-color:var(--terra)"></a>
+</nav>
+
+<main>
+
+  <section class="hero" id="top">
+    <div class="eyebrow">Внутренний документ команды проверяющих</div>
+    <h1 class="title">Пять уровней допуска к проверке на читы.</h1>
+    <p class="lede">От быстрого поиска файлов до полной удалённой сессии — инструменты, порядок действий и границы допустимого для каждого ранга.</p>
+
+    <div class="ladder">
+      <a class="ladder-row" href="#terra">
+        <span class="ladder-num">05</span>
+        <span class="ladder-bar" style="--c:var(--terra); width:110px;"></span>
+        <span class="ladder-name" style="color:var(--terra)">Terra</span>
+        <span class="ladder-desc">Полная удалённая сессия, автозагрузка, финальный голос</span>
+      </a>
+      <a class="ladder-row" href="#gamma">
+        <span class="ladder-num">04</span>
+        <span class="ladder-bar" style="--c:var(--gamma); width:90px;"></span>
+        <span class="ladder-name" style="color:var(--gamma)">Gamma</span>
+        <span class="ladder-desc">Мониторинг сети и файловых операций в реальном времени</span>
+      </a>
+      <a class="ladder-row" href="#meta">
+        <span class="ladder-num">03</span>
+        <span class="ladder-bar" style="--c:var(--meta); width:70px;"></span>
+        <span class="ladder-name" style="color:var(--meta)">Meta</span>
+        <span class="ladder-desc">Хронология запуска программ и Prefetch-анализ</span>
+      </a>
+      <a class="ladder-row" href="#beta">
+        <span class="ladder-num">02</span>
+        <span class="ladder-bar" style="--c:var(--beta); width:50px;"></span>
+        <span class="ladder-name" style="color:var(--beta)">Beta</span>
+        <span class="ladder-desc">Анализ процессов и истории USB-устройств</span>
+      </a>
+      <a class="ladder-row" href="#alpha">
+        <span class="ladder-num">01</span>
+        <span class="ladder-bar" style="--c:var(--alpha); width:30px;"></span>
+        <span class="ladder-name" style="color:var(--alpha)">Alpha</span>
+        <span class="ladder-desc">Поиск файлов и анализ ShellBags</span>
+      </a>
+    </div>
+  </section>
+
+  <section id="rules">
+    <div class="eyebrow">00 · База</div>
+    <h2 class="section-title">Общие правила для всех рангов</h2>
+    <p class="section-lede">Действуют на любом этапе проверки независимо от ранга проверяющего и не отменяются частными инструкциями ниже.</p>
+
+    <div class="rules-grid">
+      <div class="rule-card">
+        <h3>Обязательные условия проверки</h3>
+        <ul>
+          <li>Проверка проводится только с явным, зафиксированным согласием игрока (скриншот обращения, отметка в тикете и т.п.).</li>
+          <li>Все данные, полученные в ходе проверки, конфиденциальны и не разглашаются за пределами команды проверяющих.</li>
+          <li>Любые находки фиксируются доказательно: скриншоты/записи с датой, временем и путём файла.</li>
+          <li>Итоговое решение о наказании принимает проверяющий соответствующего ранга или куратор — не сам факт запуска инструмента.</li>
+          <li>Проверяющий не совершает необратимых действий (удаление файлов, чистка системы) без прямого согласия игрока и фиксации в отчёте.</li>
+        </ul>
+      </div>
+      <div class="rule-card">
+        <h3>Условия для повышения ранга</h3>
+        <ul>
+          <li>Отсутствие нарушений служебной дисциплины (разглашение информации, грубость, неявки без уважительной причины).</li>
+          <li>Соблюдение конфиденциальности — данные проверок не разглашаются вне команды.</li>
+          <li>Решение о повышении принимает куратор ранга Проверяющий отдела или администратор сервера.</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= ALPHA ================= -->
+  <section class="rank-section" id="alpha" data-rank="alpha" style="--c:var(--alpha)">
+    <div class="rank-head">
+      <span class="rank-level">УРОВЕНЬ 1 / 5</span>
+    </div>
+    <div class="rank-title">Alpha</div>
+    <p class="rank-subtitle">Базовый уровень проверки: быстрый поиск файлов и анализ истории посещений папок.</p>
+    <div class="rank-accent-bar"></div>
+
+    <div class="block">
+      <div class="block-label">Инструменты</div>
+      <div class="tools-grid">
+        <div class="tool-card">
+          <div class="tool-name">Everything</div>
+          <div class="tool-desc">Мгновенный поиск файлов и папок по всему диску. Используется для поиска чит-клиентов, инжекторов, подозрительных .dll/.exe, конфигов читов и следов их удаления.</div>
+          <a class="tool-link" href="https://www.voidtools.com/ru-ru/downloads/" target="_blank" rel="noopener">voidtools.com/downloads <span>↗</span></a>
+        </div>
+        <div class="tool-card">
+          <div class="tool-name">ShellBag Analyzer (PrivaZer)</div>
+          <div class="tool-desc">Анализ ShellBags — данных реестра о посещённых папках проводника, даже если сами файлы уже удалены. Восстанавливает список открывавшихся директорий.</div>
+          <a class="tool-link" href="https://privazer.com/ru/download-shellbag-analyzer-shellbag-cleaner.php" target="_blank" rel="noopener">privazer.com <span>↗</span></a>
+        </div>
+      </div>
+    </div>
+
+    <div class="block">
+      <div class="block-label">Порядок действий</div>
+      <div class="steps">
+        <div class="step"><div class="step-num">1</div><div class="step-text">Попросить игрока запустить проверку на своём ПК под наблюдением проверяющего (демонстрация экрана).</div></div>
+        <div class="step"><div class="step-num">2</div><div class="step-text">Запустить Everything и выполнить поиск по маскам: *.dll, *cheat*, *inject*, *loader*, а также проверить Downloads, Desktop, Temp, AppData.</div></div>
+        <div class="step"><div class="step-num">3</div><div class="step-text">Отсортировать результаты по дате изменения — выявить файлы, появившиеся или удалённые незадолго до проверки.</div></div>
+        <div class="step"><div class="step-num">4</div><div class="step-text">Запустить ShellBag Analyzer и построить отчёт по посещённым папкам за последние недели.</div></div>
+        <div class="step"><div class="step-num">5</div><div class="step-text">Сопоставить путь из ShellBags с результатами Everything: посещённая, но пустая папка — признак удаления улик.</div></div>
+        <div class="step"><div class="step-num">6</div><div class="step-text">Сделать скриншоты/скринкасты всех находок с видимыми путями и датами.</div></div>
+        <div class="step"><div class="step-num">7</div><div class="step-text">Занести результат в лог по шаблону отчёта Alpha и передать наставнику при необходимости.</div></div>
+      </div>
+    </div>
+
+    <div class="block">
+      <div class="block-label">Границы действий</div>
+      <div class="permissions">
+        <div class="perm-card allow">
+          <div class="perm-title allow">Можно</div>
+          <ul class="perm-list allow">
+            <li>Проверять только при явном согласии игрока и в присутствии наставника (первые две учебные проверки).</li>
+            <li>Использовать только официальные сборки программ с официальных сайтов.</li>
+            <li>Фиксировать находки скриншотами с датой/временем и путём файла.</li>
+            <li>Просить игрока самостоятельно запускать программы под совместным наблюдением.</li>
+          </ul>
+        </div>
+        <div class="perm-card deny">
+          <div class="perm-title deny">Нельзя</div>
+          <ul class="perm-list deny">
+            <li>Запускать проверку без согласия игрока или в его отсутствие.</li>
+            <li>Удалять, изменять или переносить файлы игрока в процессе проверки.</li>
+            <li>Делать вывод о читерстве по одному совпадению названия файла.</li>
+            <li>Публиковать скриншоты личных файлов игрока вне рабочего чата команды.</li>
+            <li>Устанавливать сторонний неофициальный софт на компьютер игрока.</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <div class="block">
+      <div class="block-label">Важные примечания</div>
+      <div class="note-box">
+        <div class="note-item"><b>Предварительность.</b> Все находки уровня Alpha считаются предварительными — окончательное решение о бане принимает проверяющий Beta и выше.</div>
+        <div class="note-item"><b>Наблюдение.</b> Учебные проверки Alpha обязательно проводятся под наблюдением наставника Beta+ и протоколируются.</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= BETA ================= -->
+  <section class="rank-section" id="beta" data-rank="beta" style="--c:var(--beta)">
+    <div class="rank-head">
+      <span class="rank-level">УРОВЕНЬ 2 / 5</span>
+    </div>
+    <div class="rank-title">Beta</div>
+    <p class="rank-subtitle">Анализ процессов и подключённых USB-устройств.</p>
+    <div class="rank-accent-bar"></div>
+
+    <div class="block">
+      <div class="block-label">Инструменты</div>
+      <div class="tools-grid">
+        <div class="tool-card">
+          <div class="tool-name">Process Hacker 2</div>
+          <div class="tool-desc">Расширенный диспетчер процессов: загруженные модули (DLL), потоки, дескрипторы, сетевые соединения — помогает найти инжектированные библиотеки чит-клиентов.</div>
+          <a class="tool-link" href="https://processhacker.sourceforge.io/" target="_blank" rel="noopener">processhacker.sourceforge.io <span>↗</span></a>
+        </div>
+        <div class="tool-card">
+          <div class="tool-name">USBDeview</div>
+          <div class="tool-desc">История подключений USB-устройств: какие накопители подключались и когда — используется для выявления запуска или удаления читов через флешку.</div>
+          <a class="tool-link" href="https://www.nirsoft.net/utils/usbdeview.zip" target="_blank" rel="noopener">nirsoft.net/utils/usbdeview <span>↗</span></a>
+        </div>
+      </div>
+    </div>
+
+    <div class="block">
+      <div class="block-label">Порядок действий</div>
+      <div class="steps">
+        <div class="step"><div class="step-num">1</div><div class="step-text">Запустить Process Hacker 2 от имени администратора на ПК игрока.</div></div>
+        <div class="step"><div class="step-num">2</div><div class="step-text">Найти процесс игры, открыть вкладку «Modules» — проверить загруженные DLL на предмет посторонних/неподписанных модулей.</div></div>
+        <div class="step"><div class="step-num">3</div><div class="step-text">Проверить вкладки «Handles» и «Network» процесса игры на подозрительные сетевые подключения.</div></div>
+        <div class="step"><div class="step-num">4</div><div class="step-text">Открыть USBDeview и просмотреть список подключавшихся устройств за интересующий период.</div></div>
+        <div class="step"><div class="step-num">5</div><div class="step-text">Сопоставить время подключения USB-устройства с моментами подозрительной активности по логам сервера.</div></div>
+        <div class="step"><div class="step-num">6</div><div class="step-text">При неоднозначных признаках — провести консультацию с куратором Meta+.</div></div>
+        <div class="step"><div class="step-num">7</div><div class="step-text">Оформить отчёт: процессы/модули/USB-устройства, скриншоты, вывод.</div></div>
+      </div>
+    </div>
+
+    <div class="block">
+      <div class="block-label">Границы действий</div>
+      <div class="permissions">
+        <div class="perm-card allow">
+          <div class="perm-title allow">Можно</div>
+          <ul class="perm-list allow">
+            <li>Завершать процесс инжектора только как способ временно прекратить чит на время проверки, с согласия игрока и фиксацией в отчёте.</li>
+            <li>Просматривать список всех процессов и модулей игрока в рамках проверки.</li>
+            <li>Просматривать историю USB-подключений за разумный период.</li>
+          </ul>
+        </div>
+        <div class="perm-card deny">
+          <div class="perm-title deny">Нельзя</div>
+          <ul class="perm-list deny">
+            <li>Завершать системные или сторонние процессы, не относящиеся к игре/читам.</li>
+            <li>Копировать личные файлы игрока с подключённых USB-накопителей.</li>
+            <li>Делать вывод о бане по одному факту подключения флешки.</li>
+            <li>Передавать данные о процессах/устройствах третьим лицам вне команды.</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <div class="block">
+      <div class="block-label">Важные примечания</div>
+      <div class="note-box">
+        <div class="note-item"><b>Логирование.</b> Повышение до Beta требует коэффициента успешности проверок не менее 70%, подтверждённого логами.</div>
+        <div class="note-item"><b>Собеседование.</b> Устное собеседование с куратором Meta+ по методам обнаружения читов в памяти — обязательное условие, а не разовая проверка.</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= META ================= -->
+  <section class="rank-section" id="meta" data-rank="meta" style="--c:var(--meta)">
+    <div class="rank-head">
+      <span class="rank-level">УРОВЕНЬ 3 / 5</span>
+    </div>
+    <div class="rank-title">Meta</div>
+    <p class="rank-subtitle">Восстановление хронологии действий игрока: запущенные программы и Prefetch-файлы.</p>
+    <div class="rank-accent-bar"></div>
+
+    <div class="block">
+      <div class="block-label">Инструменты</div>
+      <div class="tools-grid">
+        <div class="tool-card">
+          <div class="tool-name">ExecutedProgramsList</div>
+          <div class="tool-desc">Список программ, запускавшихся на компьютере (на основе UserAssist), с датой и числом запусков — видно, запускался ли чит-клиент или связанные утилиты.</div>
+          <a class="tool-link" href="https://www.nirsoft.net/utils/executed_programs_list.html" target="_blank" rel="noopener">nirsoft.net/executed_programs_list <span>↗</span></a>
+        </div>
+        <div class="tool-card">
+          <div class="tool-name">WinPrefetchView</div>
+          <div class="tool-desc">Анализ файлов Prefetch: какие exe запускались, сколько раз, когда и какие файлы/DLL загружали.</div>
+          <a class="tool-link" href="https://www.nirsoft.net/utils/win_prefetch_view.html" target="_blank" rel="noopener">nirsoft.net/win_prefetch_view <span>↗</span></a>
+        </div>
+      </div>
+    </div>
+
+    <div class="block">
+      <div class="block-label">Порядок действий</div>
+      <div class="steps">
+        <div class="step"><div class="step-num">1</div><div class="step-text">Запустить ExecutedProgramsList и отсортировать список по дате последнего запуска.</div></div>
+        <div class="step"><div class="step-num">2</div><div class="step-text">Найти записи, совпадающие с известными чит-клиентами, инжекторами, чистильщиками следов или спуферами HWID.</div></div>
+        <div class="step"><div class="step-num">3</div><div class="step-text">Открыть WinPrefetchView и изучить список файлов, загружаемых подозрительными .exe.</div></div>
+        <div class="step"><div class="step-num">4</div><div class="step-text">Сопоставить время запуска подозрительной программы с логами захода игрока на сервер.</div></div>
+        <div class="step"><div class="step-num">5</div><div class="step-text">При однозначных следах — подготовить кейс с полным набором доказательств.</div></div>
+        <div class="step"><div class="step-num">6</div><div class="step-text">Провести совместную проверку с действующим Meta-проверяющим либо завершить проверку самостоятельно.</div></div>
+        <div class="step"><div class="step-num">7</div><div class="step-text">Оформить итоговый отчёт и, при необходимости, обучающий материал по разбору кейса.</div></div>
+      </div>
+    </div>
+
+    <div class="block">
+      <div class="block-label">Границы действий</div>
+      <div class="permissions">
+        <div class="perm-card allow">
+          <div class="perm-title allow">Можно</div>
+          <ul class="perm-list allow">
+            <li>Восстанавливать полную хронологию запуска программ за проверяемый период.</li>
+            <li>Использовать находки как основание для запроса проверки более высокого уровня (Gamma/Terra).</li>
+            <li>Готовить обезличенные обучающие материалы на основе анонимизированных кейсов.</li>
+          </ul>
+        </div>
+        <div class="perm-card deny">
+          <div class="perm-title deny">Нельзя</div>
+          <ul class="perm-list deny">
+            <li>Публично называть игрока читером по одной записи без полного разбора Prefetch/UserAssist.</li>
+            <li>Использовать обучающие материалы с реальными никами без анонимизации.</li>
+            <li>Игнорировать ложноположительные программы (антивирусы, оптимизаторы, легитимный софт).</li>
+            <li>Передавать кейс/гайд за пределы команды проверяющих.</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <div class="block">
+      <div class="block-label">Важные примечания</div>
+      <div class="note-box">
+        <div class="note-item"><b>Экзамен.</b> Повышение до Meta включает разбор кейса по ShellBag и Prefetch-файлам с проходным баллом ≥ 90%.</div>
+        <div class="note-item"><b>Активность.</b> Требование о 15 активных сменах в месяц отслеживается куратором отдельно и не заменяется количеством проверок.</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= GAMMA ================= -->
+  <section class="rank-section" id="gamma" data-rank="gamma" style="--c:var(--gamma)">
+    <div class="rank-head">
+      <span class="rank-level">УРОВЕНЬ 4 / 5</span>
+    </div>
+    <div class="rank-title">Gamma</div>
+    <p class="rank-subtitle">Мониторинг сети и файловой активности в реальном времени — выявление сложных читов.</p>
+    <div class="rank-accent-bar"></div>
+
+    <div class="block">
+      <div class="block-label">Инструменты</div>
+      <div class="tools-grid">
+        <div class="tool-card">
+          <div class="tool-name">Process Monitor</div>
+          <div class="tool-desc">Обращения процессов к файловой системе, реестру и другим процессам в реальном времени — помогает найти скрытые инжекторы и попытки сокрытия следов во время проверки.</div>
+          <a class="tool-link" href="https://learn.microsoft.com/en-us/sysinternals/downloads/procmon" target="_blank" rel="noopener">learn.microsoft.com/sysinternals/procmon <span>↗</span></a>
+        </div>
+        <div class="tool-card">
+          <div class="tool-name">TCPView</div>
+          <div class="tool-desc">Активные сетевые соединения по процессам — обнаруживает скрытые подключения чит-клиента к серверам управления или загрузку модулей «на лету».</div>
+          <a class="tool-link" href="https://learn.microsoft.com/en-us/sysinternals/downloads/tcpview" target="_blank" rel="noopener">learn.microsoft.com/sysinternals/tcpview <span>↗</span></a>
+        </div>
+      </div>
+    </div>
+
+    <div class="block">
+      <div class="block-label">Порядок действий</div>
+      <div class="steps">
+        <div class="step"><div class="step-num">1</div><div class="step-text">Запустить Process Monitor с фильтром по процессу игры до входа игрока на сервер.</div></div>
+        <div class="step"><div class="step-num">2</div><div class="step-text">Параллельно запустить TCPView и отслеживать новые соединения сразу после входа на сервер.</div></div>
+        <div class="step"><div class="step-num">3</div><div class="step-text">Отметить в Procmon обращения к подозрительным путям и к реестру автозапуска.</div></div>
+        <div class="step"><div class="step-num">4</div><div class="step-text">В TCPView зафиксировать IP-адреса и порты неизвестных соединений для дальнейшего анализа.</div></div>
+        <div class="step"><div class="step-num">5</div><div class="step-text">Сопоставить сетевую и файловую активность по времени — совпадение по секундам указывает на инжекцию.</div></div>
+        <div class="step"><div class="step-num">6</div><div class="step-text">При обнаружении сложного чита — задокументировать полную цепочку событий как отдельный кейс.</div></div>
+        <div class="step"><div class="step-num">7</div><div class="step-text">Составить итоговый отчёт с таймлайном и экспортом логов Procmon/TCPView.</div></div>
+      </div>
+    </div>
+
+    <div class="block">
+      <div class="block-label">Границы действий</div>
+      <div class="permissions">
+        <div class="perm-card allow">
+          <div class="perm-title allow">Можно</div>
+          <ul class="perm-list allow">
+            <li>Вести запись Procmon в течение всей проверки для последующего разбора.</li>
+            <li>Завершать сетевое соединение процесса чита при чётком подтверждении, с фиксацией в отчёте.</li>
+            <li>Проводить обучение Alpha/Beta на основе анонимизированных сетевых кейсов.</li>
+          </ul>
+        </div>
+        <div class="perm-card deny">
+          <div class="perm-title deny">Нельзя</div>
+          <ul class="perm-list deny">
+            <li>Оставлять Procmon запущенным без присмотра дольше, чем необходимо.</li>
+            <li>Анализировать трафик, не относящийся к процессу игры (переписка, другие приложения).</li>
+            <li>Выносить IP-адреса и сетевые данные за пределы команды без острой необходимости.</li>
+            <li>Делать вывод о «ghost-клиенте» без совпадения файловых и сетевых событий по времени.</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <div class="block">
+      <div class="block-label">Важные примечания</div>
+      <div class="note-box">
+        <div class="note-item"><b>Порог.</b> Для повышения до Gamma нужно выявить не менее 5 сложных читов в ранге Meta — каждый кейс документируется по форме Procmon + TCPView.</div>
+        <div class="note-item"><b>Точность.</b> Коэффициент успешности ≥ 85% и отсутствие ложных банов за последние 2 недели проверяются перед подачей на повышение.</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= TERRA ================= -->
+  <section class="rank-section" id="terra" data-rank="terra" style="--c:var(--terra)">
+    <div class="rank-head">
+      <span class="rank-level">УРОВЕНЬ 5 / 5</span>
+    </div>
+    <div class="rank-title">Terra</div>
+    <p class="rank-subtitle">Полная удалённая сессия, автозагрузка системы и методическое руководство командой.</p>
+    <div class="rank-accent-bar"></div>
+
+    <div class="block">
+      <div class="block-label">Инструменты</div>
+      <div class="tools-grid">
+        <div class="tool-card">
+          <div class="tool-name">AnyDesk</div>
+          <div class="tool-desc">Удалённый доступ — для полной удалённой сессии проверки, когда локальных инструментов недостаточно.</div>
+          <a class="tool-link" href="https://anydesk.com/ru/downloads" target="_blank" rel="noopener">anydesk.com/ru/downloads <span>↗</span></a>
+        </div>
+        <div class="tool-card">
+          <div class="tool-name">Autoruns</div>
+          <div class="tool-desc">Полный список автозагрузки Windows: программы, службы, драйверы, задачи планировщика — поиск читов, прописанных в автозагрузку под видом системных служб.</div>
+          <a class="tool-link" href="https://learn.microsoft.com/en-us/sysinternals/downloads/autoruns" target="_blank" rel="noopener">learn.microsoft.com/sysinternals/autoruns <span>↗</span></a>
+        </div>
+      </div>
+    </div>
+
+    <div class="block">
+      <div class="block-label">Порядок действий</div>
+      <div class="steps">
+        <div class="step"><div class="step-num">1</div><div class="step-text">Игрок сам устанавливает AnyDesk и сообщает код доступа; проверяющий подключается только после получения кода.</div></div>
+        <div class="step"><div class="step-num">2</div><div class="step-text">Кратко сообщить игроку план проверки: какие инструменты будут использованы и что именно проверяется.</div></div>
+        <div class="step"><div class="step-num">3</div><div class="step-text">Запустить Autoruns, проверить вкладки Logon, Services, Drivers, Scheduled Tasks — отфильтровать неподписанные записи.</div></div>
+        <div class="step"><div class="step-num">4</div><div class="step-text">При необходимости повторно применить инструменты младших рангов уже в рамках удалённой сессии для полной картины.</div></div>
+        <div class="step"><div class="step-num">5</div><div class="step-text">Зафиксировать находки скриншотами/записью сессии, предупредив игрока о записи.</div></div>
+        <div class="step"><div class="step-num">6</div><div class="step-text">Составить итоговый акт проверки с полным списком проверенных пунктов и выводом.</div></div>
+        <div class="step"><div class="step-num">7</div><div class="step-text">В спорном случае — вынести кейс на разбор с правом финального голоса Terra-проверяющего.</div></div>
+        <div class="step"><div class="step-num">8</div><div class="step-text">Завершить сессию и убедиться, что AnyDesk отключён на обеих сторонах.</div></div>
+      </div>
+    </div>
+
+    <div class="block">
+      <div class="block-label">Границы действий</div>
+      <div class="permissions">
+        <div class="perm-card allow">
+          <div class="perm-title allow">Можно</div>
+          <ul class="perm-list allow">
+            <li>Проводить сессию только после самостоятельной установки AnyDesk игроком и передачи кода по своей инициативе.</li>
+            <li>Просматривать автозагрузку полностью, включая службы и драйверы, в рамках согласованной проверки.</li>
+            <li>Записывать экран сессии как доказательство, предупредив игрока заранее.</li>
+            <li>Отключать подозрительную запись автозагрузки только с согласия игрока и фиксацией в акте.</li>
+          </ul>
+        </div>
+        <div class="perm-card deny">
+          <div class="perm-title deny">Нельзя</div>
+          <ul class="perm-list deny">
+            <li>Подключаться без явного согласия или по «старому» коду доступа без нового подтверждения.</li>
+            <li>Просматривать личные документы, фото, переписки, историю браузера, не связанную с проверкой.</li>
+            <li>Устанавливать дополнительное ПО без предупреждения и согласия.</li>
+            <li>Удалять файлы или записи автозагрузки без согласия — только отключение с фиксацией.</li>
+            <li>Передавать доступ AnyDesk или записи сессии кому-либо вне команды/администрации.</li>
+            <li>Использовать право финального голоса для решения личных конфликтов с игроком.</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <div class="block">
+      <div class="block-label">Важные примечания</div>
+      <div class="note-box">
+        <div class="note-item"><b>Наставничество.</b> Terra — наставнический ранг: обязательное условие повышения — успешное наставничество не менее 5 проверяющих младших рангов.</div>
+        <div class="note-item"><b>Стаж.</b> Требуется внедрённое администрацией улучшение регламента и минимум 7 месяцев активной работы в команде.</div>
+        <div class="note-item"><b>Утверждение.</b> Присвоение ранга Terra утверждается голосованием действующих Terra и администрации.</div>
+      </div>
+    </div>
+  </section>
+
+  <footer>
+    <p>ВНУТРЕННИЙ ДОКУМЕНТ КОМАНДЫ ПРОВЕРЯЮЩИХ · КОНФИДЕНЦИАЛЬНО · НЕ РАСПРОСТРАНЯТЬ ЗА ПРЕДЕЛЫ КОМАНДЫ</p>
+  </footer>
+
+</main>
+
+<script>
+  // mobile menu
+  const menuToggle = document.getElementById('menuToggle');
+  const menuClose = document.getElementById('menuClose');
+  const mobileNav = document.getElementById('mobileNav');
+  menuToggle?.addEventListener('click', () => mobileNav.classList.add('open'));
+  menuClose?.addEventListener('click', () => mobileNav.classList.remove('open'));
+  mobileNav?.querySelectorAll('a').forEach(a => a.addEventListener('click', () => mobileNav.classList.remove('open')));
+
+  // scrollspy
+  const sections = document.querySelectorAll('section[id]');
+  const railLinks = document.querySelectorAll('.rail a');
+  const topLinks = document.querySelectorAll('.toppills a');
+
+  const setActive = (id) => {
+    railLinks.forEach(l => l.classList.toggle('active', l.getAttribute('href') === '#' + id));
+    topLinks.forEach(l => l.classList.toggle('active', l.getAttribute('href') === '#' + id));
+  };
+
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) setActive(entry.target.id);
+    });
+  }, { rootMargin: '-45% 0px -50% 0px', threshold: 0 });
+
+  sections.forEach(s => observer.observe(s));
+</script>
+
+</body>
+</html>
